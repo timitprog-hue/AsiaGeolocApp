@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'features/auth/login_page.dart';
-
+import 'core/theme/app_theme.dart';
+import 'features/auth/auth_gate.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,9 +12,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Sales Monitor',
-      theme: ThemeData(useMaterial3: true),
-      home: const LoginPage(),
+      title: 'Asia Geoloc App',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
+      home: const AuthGate(),
     );
   }
 }

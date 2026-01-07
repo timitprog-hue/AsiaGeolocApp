@@ -43,21 +43,14 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
       setState(() => _report = data);
     } catch (e) {
-      setState(() => _error = 'Gagal load detail: $e');
+      setState(() => _error = 'Gagal memuat detail.\n$e');
     } finally {
       setState(() => _loading = false);
     }
   }
 
-  String _stripApi(String baseUrl) {
-    // http://ip:8000/api -> http://ip:8000
-    return baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
-  }
-
-  bool _looksLikeApiPhotoUrl(String url) {
-    // contoh: http://ip:8000/api/photos/20
-    return url.contains('/api/photos/');
-  }
+  String _stripApi(String baseUrl) => baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+  bool _looksLikeApiPhotoUrl(String url) => url.contains('/api/photos/');
 
   String? _resolvePhotoUrl(Map<String, dynamic> report) {
     final photos = (report['photos'] as List?) ?? [];
@@ -69,28 +62,21 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     if (base == null || base.trim().isEmpty) return null;
     final origin = _stripApi(base.trim());
 
-    // Ambil file_path untuk fallback /storage
     final filePath = p0['file_path']?.toString().trim();
-    final storageUrl = (filePath != null && filePath.isNotEmpty)
-        ? '$origin/storage/$filePath'
-        : null;
+    final storageUrl = (filePath != null && filePath.isNotEmpty) ? '$origin/storage/$filePath' : null;
 
-    // 1) kalau file_url ada tapi ternyata /api/photos/xxx -> PAKAI storageUrl
     final fileUrl = p0['file_url']?.toString().trim();
     if (fileUrl != null && fileUrl.isNotEmpty) {
-      if (_looksLikeApiPhotoUrl(fileUrl)) {
-        return storageUrl ?? fileUrl;
-      }
+      if (_looksLikeApiPhotoUrl(fileUrl)) return storageUrl ?? fileUrl;
       return fileUrl;
     }
 
-    // 2) fallback dari file_path
     return storageUrl;
   }
 
   String _fmtDate(dynamic v) {
     try {
-      final dt = DateTime.parse(v.toString()).toLocal(); // biar konsisten lokal
+      final dt = DateTime.parse(v.toString()).toLocal();
       return DateFormat("dd MMM yyyy • HH:mm").format(dt);
     } catch (_) {
       return v?.toString() ?? '-';
@@ -105,29 +91,33 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       appBar: AppBar(
         title: const Text('Detail Report'),
         actions: [
-          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: _load,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!))
-              : r == null
-                  ? const Center(child: Text('Data kosong'))
-                  : _buildContent(r),
+      body: SafeArea(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? _DetailError(message: _error!, onRetry: _load)
+                : r == null
+                    ? const Center(child: Text('Data kosong'))
+                    : _buildContent(r),
+      ),
     );
   }
 
   Widget _buildContent(Map<String, dynamic> r) {
-    String? url = _resolvePhotoUrl(r);
+    final cs = Theme.of(context).colorScheme;
 
-    // cache buster
+    String? url = _resolvePhotoUrl(r);
     if (url != null && url.isNotEmpty) {
       final v = DateTime.now().millisecondsSinceEpoch;
       url = url.contains('?') ? '$url&v=$v' : '$url?v=$v';
     }
-
-    debugPrint('DETAIL PHOTO URL: $url');
 
     final capturedAt = _fmtDate(r['captured_at']);
     final address = (r['address']?.toString().trim().isNotEmpty == true)
@@ -140,15 +130,15 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     final notes = r['notes']?.toString().trim() ?? '';
 
     return ListView(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(18),
           child: Container(
-            height: 260,
-            color: const Color(0xFFE6E6E6),
+            height: 280,
+            color: cs.surfaceContainerHighest,
             child: url == null
-                ? const Center(child: Icon(Icons.image_not_supported, size: 40))
+                ? const Center(child: Icon(Icons.image_not_supported_rounded, size: 42))
                 : Image.network(
                     url,
                     fit: BoxFit.cover,
@@ -157,55 +147,105 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                       if (progress == null) return child;
                       return const Center(child: CircularProgressIndicator());
                     },
-                    errorBuilder: (_, e, __) {
-                      debugPrint('DETAIL IMG ERROR: $e\nURL: $url');
-                      return const Center(child: Icon(Icons.broken_image, size: 40));
+                    errorBuilder: (_, __, ___) {
+                      return const Center(child: Icon(Icons.broken_image_rounded, size: 42));
                     },
                   ),
           ),
         ),
-        const SizedBox(height: 14),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF7F7F7),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(capturedAt, style: const TextStyle(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.location_on_outlined, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(address, style: const TextStyle(fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Koordinat: $lat, $lng • Akurasi: $acc m',
-                          style: const TextStyle(color: Colors.black54),
-                        ),
-                      ],
+
+        const SizedBox(height: 12),
+
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  capturedAt,
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.location_on_outlined, size: 18, color: cs.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(address, style: const TextStyle(fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Koordinat: $lat, $lng • Akurasi: $acc m',
+                            style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75)),
+                          ),
+                        ],
+                      ),
                     ),
+                  ],
+                ),
+
+                if (notes.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text('Catatan', style: TextStyle(fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(notes),
                   ),
                 ],
-              ),
-              if (notes.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Text('Catatan', style: TextStyle(fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                Text(notes),
               ],
-            ],
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DetailError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _DetailError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline_rounded, size: 44, color: cs.error),
+                const SizedBox(height: 10),
+                const Text('Gagal memuat', style: TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 6),
+                Text(message, textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Coba lagi'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
