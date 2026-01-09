@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'admin_map_page.dart';
 import 'admin_reports_page.dart';
 import 'admin_users_page.dart';
 import 'admin_profile_page.dart';
 
-// plus yang lain kalau masih kamu pakai:
-import 'package:intl/intl.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/api_parser.dart';
@@ -24,6 +23,9 @@ class _AdminShellState extends State<AdminShell> {
 
   @override
   Widget build(BuildContext context) {
+    const bg = Color(0xFFF6F8FF);
+    const blue = Color(0xFF1D4ED8);
+
     final pages = <Widget>[
       const AdminDashboardPage(),
       const AdminReportsPage(),
@@ -34,8 +36,16 @@ class _AdminShellState extends State<AdminShell> {
     final titles = <String>['Dashboard', 'Reports', 'Map', 'Users'];
 
     return Scaffold(
+      backgroundColor: bg,
       appBar: AppBar(
-        title: Text(titles[idx]),
+        title: Text(
+          titles[idx],
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        elevation: 0,
+        backgroundColor: bg,
+        foregroundColor: Colors.black87,
+        surfaceTintColor: Colors.transparent,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -51,15 +61,30 @@ class _AdminShellState extends State<AdminShell> {
         ],
       ),
       body: pages[idx],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: idx,
-        onTap: (v) => setState(() => idx = v),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long_rounded), label: 'Reports'),
-          BottomNavigationBarItem(icon: Icon(Icons.map_rounded), label: 'Map'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Users'),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 18,
+              offset: const Offset(0, -6),
+            )
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: idx,
+          onTap: (v) => setState(() => idx = v),
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: blue,
+          unselectedItemColor: Colors.black54,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
+            BottomNavigationBarItem(icon: Icon(Icons.receipt_long_rounded), label: 'Reports'),
+            BottomNavigationBarItem(icon: Icon(Icons.map_rounded), label: 'Map'),
+            BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Users'),
+          ],
+        ),
       ),
     );
   }
@@ -90,9 +115,9 @@ class _PremiumProfileButton extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.14),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.black.withOpacity(0.10),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
@@ -121,7 +146,6 @@ class _PremiumProfileButton extends StatelessWidget {
   }
 }
 
-
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
 
@@ -132,6 +156,12 @@ class AdminDashboardPage extends StatefulWidget {
 enum _Range { today, d7, d30 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
+  // Theme constants (biar konsisten)
+  static const Color _blue = Color(0xFF1D4ED8);
+  static const Color _bg = Color(0xFFF6F8FF);
+
+  final BorderRadius _r = BorderRadius.circular(22);
+
   bool _loading = true;
   String? _error;
 
@@ -210,7 +240,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final start = _startForRange(range, now);
 
       int totalInRange = 0;
-      int totalToday = 0;
+      int totalTodayLocal = 0;
 
       DateTime? latestTime;
       Map<String, dynamic>? latest;
@@ -225,7 +255,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         final dt = _parseDate(r['captured_at'] ?? r['created_at']);
         if (dt == null) continue;
 
-        if (_isSameDay(dt, now)) totalToday++;
+        if (_isSameDay(dt, now)) totalTodayLocal++;
 
         if (!dt.isBefore(start)) {
           totalInRange++;
@@ -241,19 +271,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         rec.add(r);
       }
 
-      // ✅ sort recent by captured_at desc
       rec.sort((a, b) {
         final da = _parseDate(a['captured_at'] ?? a['created_at']) ?? DateTime(1970);
         final db = _parseDate(b['captured_at'] ?? b['created_at']) ?? DateTime(1970);
         return db.compareTo(da);
       });
 
-      final top = rec.take(5).toList();
+      final top = rec.take(6).toList();
       final built = _buildBuckets(range, now, byDay);
 
       setState(() {
         kpiTotal = totalInRange;
-        kpiToday = totalToday;
+        kpiToday = totalTodayLocal;
         lastReport = latest;
         recent = top;
         buckets = built;
@@ -294,8 +323,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         final key = DateFormat('yyyy-MM-dd').format(d);
         sum += byDay[key] ?? 0;
       }
-      final label =
-          '${DateFormat('d').format(start)}-${DateFormat('d').format(end)}';
+      final label = '${DateFormat('d').format(start)}-${DateFormat('d').format(end)}';
       list.add(_Bucket(label: label, value: sum));
     }
     return list;
@@ -311,179 +339,246 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-        children: [
-          Card(
-            child: Padding(
+    return Container(
+      color: _bg,
+      child: RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+          children: [
+            // ===== HERO HEADER =====
+            Container(
               padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: _r,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    _blue.withOpacity(0.96),
+                    const Color(0xFF2563EB).withOpacity(0.86),
+                    const Color(0xFF60A5FA).withOpacity(0.55),
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: _blue.withOpacity(0.18),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 46,
+                    height: 46,
                     decoration: BoxDecoration(
-                      color: cs.primary.withOpacity(0.10),
-                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.white.withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.white.withOpacity(0.22)),
                     ),
-                    child: Icon(Icons.admin_panel_settings_rounded, color: cs.primary),
+                    child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Admin Dashboard',
-                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                        SizedBox(height: 4),
-                        Text('Monitoring laporan sales'),
+                        const Text(
+                          'Admin Dashboard',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Monitoring laporan sales • ${_rangeLabel(range)}',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
 
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: SegmentedButton<_Range>(
-                segments: const [
-                  ButtonSegment(value: _Range.today, label: Text('Today')),
-                  ButtonSegment(value: _Range.d7, label: Text('Week')),
-                  ButtonSegment(value: _Range.d30, label: Text('Month')),
-                ],
-                selected: {range},
-                onSelectionChanged: (s) {
-                  final next = s.first;
-                  if (next == range) return;
-                  setState(() => range = next);
-                  _load();
-                },
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          if (_loading) ...[
-            _AdminSkeleton(cs: cs),
-          ] else if (_error != null) ...[
-            _AdminErrorCard(message: _error!, onRetry: _load),
-          ] else ...[
-            Row(
-              children: [
-                Expanded(
-                  child: _AdminKpiCard(
-                    title: 'Total (${_rangeLabel(range)})',
-                    value: kpiTotal.toString(),
-                    icon: Icons.analytics_rounded,
-                    color: cs.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _AdminKpiCard(
-                    title: 'Hari ini',
-                    value: kpiToday.toString(),
-                    icon: Icons.today_rounded,
-                    color: cs.secondary,
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 12),
 
+            // ===== RANGE SELECTOR =====
             Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: _r),
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Trend (${_rangeLabel(range)})',
-                        style: const TextStyle(fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 10),
-                    _MiniBarChart(buckets: buckets),
+                padding: const EdgeInsets.all(12),
+                child: SegmentedButton<_Range>(
+                  segments: const [
+                    ButtonSegment(value: _Range.today, label: Text('Today')),
+                    ButtonSegment(value: _Range.d7, label: Text('Week')),
+                    ButtonSegment(value: _Range.d30, label: Text('Month')),
                   ],
+                  selected: {range},
+                  onSelectionChanged: (s) {
+                    final next = s.first;
+                    if (next == range) return;
+                    setState(() => range = next);
+                    _load();
+                  },
                 ),
               ),
             ),
 
             const SizedBox(height: 12),
 
-            _AdminLastReportCard(
-              report: lastReport,
-              fmtDate: _fmtDate,
-              asInt: _asInt,
-              onOpen: (id) => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => ReportDetailPage(reportId: id)),
+            if (_loading) ...[
+              _AdminSkeleton(cs: cs),
+            ] else if (_error != null) ...[
+              _AdminErrorCard(message: _error!, onRetry: _load),
+            ] else ...[
+              // ===== KPI =====
+              Row(
+                children: [
+                  Expanded(
+                    child: _AdminKpiCard(
+                      title: 'Total (${_rangeLabel(range)})',
+                      value: kpiTotal.toString(),
+                      icon: Icons.analytics_rounded,
+                      color: _blue,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _AdminKpiCard(
+                      title: 'Hari ini',
+                      value: kpiToday.toString(),
+                      icon: Icons.today_rounded,
+                      color: const Color(0xFF2563EB),
+                    ),
+                  ),
+                ],
               ),
-            ),
 
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            const Text('Recent Reports', style: TextStyle(fontWeight: FontWeight.w900)),
-            const SizedBox(height: 8),
-
-            if (recent.isEmpty)
+              // ===== TREND =====
               Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: _r),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: const [
-                      Icon(Icons.info_outline_rounded),
-                      SizedBox(width: 10),
-                      Expanded(child: Text('Belum ada report masuk.')),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Trend (${_rangeLabel(range)})',
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 10),
+                      _MiniBarChart(buckets: buckets),
                     ],
                   ),
                 ),
-              )
-            else
-              ...recent.map((r) {
-                final id = _asInt(r['id']);
-                final address = (r['address']?.toString().trim().isNotEmpty == true)
-                    ? r['address'].toString()
-                    : 'Alamat belum tersedia';
-                final time = _fmtDate(r['captured_at'] ?? r['created_at']);
+              ),
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Card(
-                    child: ListTile(
-                      leading: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: cs.primary.withOpacity(0.10),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(Icons.place_rounded, color: cs.primary),
-                      ),
-                      title: Text(
-                        address,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(time),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: id <= 0
-                          ? null
-                          : () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => ReportDetailPage(reportId: id)),
-                              ),
+              const SizedBox(height: 12),
+
+              // ===== LAST REPORT =====
+              _AdminLastReportCard(
+                report: lastReport,
+                fmtDate: _fmtDate,
+                asInt: _asInt,
+                onOpen: (id) => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ReportDetailPage(reportId: id)),
+                ),
+                blue: _blue,
+                radius: _r,
+              ),
+
+              const SizedBox(height: 12),
+
+              // ===== RECENT =====
+              const Text('Recent Reports', style: TextStyle(fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+
+              if (recent.isEmpty)
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: _r),
+                  child: const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded),
+                        SizedBox(width: 10),
+                        Expanded(child: Text('Belum ada report masuk.')),
+                      ],
                     ),
                   ),
-                );
-              }),
+                )
+              else
+                ...recent.map((r) {
+                  final id = _asInt(r['id']);
+                  final address = (r['address']?.toString().trim().isNotEmpty == true)
+                      ? r['address'].toString()
+                      : 'Alamat belum tersedia';
+                  final time = _fmtDate(r['captured_at'] ?? r['created_at']);
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: _r),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        leading: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: _blue.withOpacity(0.10),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Icon(Icons.place_rounded, color: _blue),
+                        ),
+                        title: Text(
+                          address,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        subtitle: Text(
+                          time,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                        ),
+                        trailing: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.04),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.chevron_right_rounded),
+                        ),
+                        onTap: id <= 0
+                            ? null
+                            : () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => ReportDetailPage(reportId: id)),
+                                ),
+                      ),
+                    ),
+                  );
+                }),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -503,6 +598,7 @@ class _MiniBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
     if (buckets.isEmpty) {
       return Text(
         'Tidak ada data.',
@@ -524,17 +620,17 @@ class _MiniBarChart extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text('${b.value}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                Text('${b.value}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
                 const SizedBox(height: 6),
                 Container(
-                  height: 90,
+                  height: 92,
                   alignment: Alignment.bottomCenter,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
                     height: h.isNaN ? 0 : h,
                     decoration: BoxDecoration(
                       color: cs.primary.withOpacity(0.85),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
@@ -571,19 +667,19 @@ class _AdminKpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(18),
               ),
               child: Icon(icon, color: color),
             ),
@@ -592,9 +688,9 @@ class _AdminKpiCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(color: cs.onSurface.withOpacity(0.65))),
+                  Text(title, style: TextStyle(color: Colors.black.withOpacity(0.6), fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
-                  Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                  Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
                 ],
               ),
             ),
@@ -610,28 +706,32 @@ class _AdminLastReportCard extends StatelessWidget {
   final String Function(dynamic v) fmtDate;
   final int Function(dynamic v) asInt;
   final void Function(int id) onOpen;
+  final Color blue;
+  final BorderRadius radius;
 
   const _AdminLastReportCard({
     required this.report,
     required this.fmtDate,
     required this.asInt,
     required this.onOpen,
+    required this.blue,
+    required this.radius,
   });
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     if (report == null) {
       return Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: radius),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(Icons.info_outline_rounded, color: cs.primary),
+              Icon(Icons.info_outline_rounded, color: blue),
               const SizedBox(width: 10),
               const Expanded(
-                child: Text('Belum ada report yang masuk.', style: TextStyle(fontWeight: FontWeight.w800)),
+                child: Text('Belum ada report yang masuk.', style: TextStyle(fontWeight: FontWeight.w900)),
               ),
             ],
           ),
@@ -646,21 +746,23 @@ class _AdminLastReportCard extends StatelessWidget {
     final time = fmtDate(report!['captured_at'] ?? report!['created_at']);
 
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: radius),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: radius,
         onTap: id > 0 ? () => onOpen(id) : null,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(14),
+                  color: blue.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(18),
                 ),
-                child: Icon(Icons.history_rounded, color: cs.primary),
+                child: Icon(Icons.history_rounded, color: blue),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -673,17 +775,25 @@ class _AdminLastReportCard extends StatelessWidget {
                       address,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       time,
-                      style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75)),
+                      style: TextStyle(color: Colors.black.withOpacity(0.6), fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded),
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.04),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.chevron_right_rounded),
+              ),
             ],
           ),
         ),
@@ -702,6 +812,8 @@ class _AdminErrorCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -734,25 +846,25 @@ class _AdminSkeleton extends StatelessWidget {
           height: h,
           decoration: BoxDecoration(
             color: cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(22),
           ),
         );
 
     return Column(
       children: [
-        box(70),
+        box(92),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: box(82)),
+            Expanded(child: box(88)),
             const SizedBox(width: 12),
-            Expanded(child: box(82)),
+            Expanded(child: box(88)),
           ],
         ),
         const SizedBox(height: 12),
-        box(140),
+        box(160),
         const SizedBox(height: 12),
-        box(92),
+        box(110),
       ],
     );
   }
