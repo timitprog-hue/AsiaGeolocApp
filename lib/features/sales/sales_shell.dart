@@ -7,6 +7,8 @@ import '../auth/login_page.dart';
 import '../reports/report_create_page.dart';
 import '../reports/report_detail_page.dart';
 import '../reports/report_list_page.dart';
+import '../../core/live_location_service.dart';
+
 
 class SalesShell extends StatefulWidget {
   const SalesShell({super.key});
@@ -16,67 +18,52 @@ class SalesShell extends StatefulWidget {
 }
 
 class _SalesShellState extends State<SalesShell> {
-  // ===== STYLE (Blue Modern) =====
-  static const Color _blue = Color(0xFF1D4ED8);
-  static const Color _bg = Color(0xFFF6F8FF);
-
   int idx = 0;
 
-  Future<void> _goCreateReport() async {
-    final ok = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => const ReportCreatePage()),
-    );
+  final _live = LiveLocationService();
 
-    if (ok == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Report berhasil dikirim')),
-      );
-    }
+  @override
+  void initState() {
+    super.initState();
+    // ✅ mulai kirim lokasi berkala (boleh 10 detik dulu biar kerasa live)
+    _live.start(interval: const Duration(seconds: 10));
+  }
+
+  @override
+  void dispose() {
+    _live.stop();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
-      SalesHomePage(
-        onOpenReportsTab: () => setState(() => idx = 1),
-        onOpenCreate: _goCreateReport,
-      ),
+      const SalesHomePage(),
       const ReportListPage(),
       const SalesProfilePage(),
     ];
 
-    final title = idx == 0 ? 'Home' : idx == 1 ? 'Reports' : 'Profile';
-
     return Scaffold(
-      backgroundColor: _bg,
       appBar: AppBar(
-        title: Text(title),
-        elevation: 0,
-        backgroundColor: _bg,
-        foregroundColor: Colors.black87,
-        surfaceTintColor: Colors.transparent,
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: () => setState(() {}),
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-          const SizedBox(width: 6),
-        ],
+        title: Text(idx == 0 ? 'Home' : idx == 1 ? 'Reports' : 'Profile'),
       ),
       body: pages[idx],
-
-      // ✅ FAB tetap ada di semua halaman (Home/Reports/Profile)
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: _blue,
-        foregroundColor: Colors.white,
-        onPressed: _goCreateReport,
+        onPressed: () async {
+          final ok = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const ReportCreatePage()),
+          );
+          if (ok == true && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Report berhasil dikirim')),
+            );
+          }
+        },
         icon: const Icon(Icons.add_a_photo_rounded),
         label: const Text('Buat Report'),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: idx,
         onTap: (v) => setState(() => idx = v),
@@ -90,25 +77,15 @@ class _SalesShellState extends State<SalesShell> {
   }
 }
 
-class SalesHomePage extends StatefulWidget {
-  final VoidCallback onOpenReportsTab;
-  final VoidCallback onOpenCreate;
 
-  const SalesHomePage({
-    super.key,
-    required this.onOpenReportsTab,
-    required this.onOpenCreate,
-  });
+class SalesHomePage extends StatefulWidget {
+  const SalesHomePage({super.key});
 
   @override
   State<SalesHomePage> createState() => _SalesHomePageState();
 }
 
 class _SalesHomePageState extends State<SalesHomePage> {
-  // ===== STYLE (Blue Modern) =====
-  static const Color _blue = Color(0xFF1D4ED8);
-  final BorderRadius _r = BorderRadius.circular(22);
-
   bool _loading = true;
   String? _error;
 
@@ -128,21 +105,7 @@ class _SalesHomePageState extends State<SalesHomePage> {
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  DateTime? _parseDate(dynamic raw) {
-    if (raw == null) return null;
-    try {
-      return DateTime.parse(raw.toString()).toLocal();
-    } catch (_) {
-      try {
-        return DateFormat("yyyy-MM-dd HH:mm:ss").parse(raw.toString()).toLocal();
-      } catch (_) {
-        return null;
-      }
-    }
-  }
-
   Future<void> _load() async {
-    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -169,7 +132,20 @@ class _SalesHomePageState extends State<SalesHomePage> {
         final r = item.cast<String, dynamic>();
 
         final raw = r['captured_at'] ?? r['created_at'] ?? r['waktu'];
-        final dt = _parseDate(raw);
+        if (raw == null) continue;
+
+        DateTime? dt;
+        try {
+          // captured_at biasanya ISO
+          dt = DateTime.parse(raw.toString()).toLocal();
+        } catch (_) {
+          // fallback kalau format SQL "yyyy-MM-dd HH:mm:ss"
+          try {
+            dt = DateFormat("yyyy-MM-dd HH:mm:ss").parse(raw.toString());
+          } catch (_) {
+            dt = null;
+          }
+        }
         if (dt == null) continue;
 
         if (_isSameDay(dt, now)) t++;
@@ -181,7 +157,6 @@ class _SalesHomePageState extends State<SalesHomePage> {
         }
       }
 
-      if (!mounted) return;
       setState(() {
         todayCount = t;
         weekCount = w;
@@ -189,7 +164,6 @@ class _SalesHomePageState extends State<SalesHomePage> {
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
       setState(() {
         _error = 'Gagal memuat data.\n$e';
         _loading = false;
@@ -211,67 +185,13 @@ class _SalesHomePageState extends State<SalesHomePage> {
       child: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
           children: [
-            // ===== HERO =====
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                borderRadius: _r,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    _blue.withOpacity(0.95),
-                    const Color(0xFF2563EB).withOpacity(0.88),
-                    const Color(0xFF60A5FA).withOpacity(0.55),
-                  ],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _blue.withOpacity(0.18),
-                    blurRadius: 24,
-                    offset: const Offset(0, 12),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.18),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Colors.white.withOpacity(0.22)),
-                    ),
-                    child: const Icon(Icons.location_on_rounded, color: Colors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Aktivitas Sales',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 16,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Kirim report dengan foto & lokasi yang akurat.',
-                          style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            _HeaderCard(
+              title: 'Aktivitas Sales',
+              subtitle: 'Pastikan report dikirim dengan foto & lokasi yang akurat.',
+              icon: Icons.location_on_rounded,
             ),
-
             const SizedBox(height: 12),
 
             if (_loading) ...[
@@ -302,35 +222,18 @@ class _SalesHomePageState extends State<SalesHomePage> {
               ),
               const SizedBox(height: 12),
 
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: _r),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: widget.onOpenReportsTab,
-                          icon: const Icon(Icons.receipt_long_rounded),
-                          label: const Text('Lihat Reports'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _blue,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: widget.onOpenCreate,
-                          icon: const Icon(Icons.add_a_photo_rounded),
-                          label: const Text('Buat Report'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              _QuickActions(
+                onCreate: () async {
+                  final ok = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReportCreatePage()),
+                  );
+                  if (ok == true) _load();
+                },
+                onOpenReports: () {
+                  // kalau kamu ingin pindah ke tab Reports: nanti kita buat callback dari shell
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportListPage()));
+                },
               ),
 
               const SizedBox(height: 12),
@@ -353,55 +256,10 @@ class _SalesHomePageState extends State<SalesHomePage> {
   }
 }
 
-class SalesProfilePage extends StatefulWidget {
+class SalesProfilePage extends StatelessWidget {
   const SalesProfilePage({super.key});
 
-  @override
-  State<SalesProfilePage> createState() => _SalesProfilePageState();
-}
-
-class _SalesProfilePageState extends State<SalesProfilePage> {
-  // ===== STYLE =====
-  static const Color _blue = Color(0xFF1D4ED8);
-  static const Color _bg = Color(0xFFF6F8FF);
-  final BorderRadius _r = BorderRadius.circular(22);
-
-  bool _loading = true;
-  String? _error;
-  Map<String, dynamic>? _me;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    if (!mounted) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final storage = AuthStorage();
-      final api = ApiClient(storage);
-
-      final res = await api.dio.get('/me');
-      if (res.data is! Map) throw Exception('Response /me bukan Map');
-
-      if (!mounted) return;
-      setState(() => _me = (res.data as Map).cast<String, dynamic>());
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = 'Gagal memuat profile.\n$e');
-    } finally {
-      if (!mounted) return;
-      setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _logout() async {
+  Future<void> _logout(BuildContext context) async {
     final storage = AuthStorage();
     final api = ApiClient(storage);
 
@@ -411,7 +269,7 @@ class _SalesProfilePageState extends State<SalesProfilePage> {
 
     await storage.clearToken();
 
-    if (!mounted) return;
+    if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginPage()),
       (_) => false,
@@ -420,255 +278,86 @@ class _SalesProfilePageState extends State<SalesProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    final name = (_me?['name'] ?? 'Sales').toString();
-    final email = (_me?['email'] ?? '-').toString();
-    final role = (_me?['role'] ?? 'sales').toString();
-
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
-          children: [
-            // ===== HEADER / HERO =====
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                borderRadius: _r,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    _blue.withOpacity(0.95),
-                    const Color(0xFF2563EB).withOpacity(0.88),
-                    const Color(0xFF60A5FA).withOpacity(0.55),
-                  ],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _blue.withOpacity(0.18),
-                    blurRadius: 24,
-                    offset: const Offset(0, 12),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.18),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Colors.white.withOpacity(0.22)),
-                    ),
-                    child: const Icon(Icons.account_circle_rounded, color: Colors.white, size: 34),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          email,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: Colors.white.withOpacity(0.85), fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 10),
-                        _RoleChipBlue(role: role),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            if (_loading) ...[
-              _ProfileSkeleton(bg: _bg),
-            ] else if (_error != null) ...[
-              _ProfileErrorCard(message: _error!, onRetry: _load),
-            ] else ...[
-              // ===== ACCOUNT DETAILS =====
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: _r),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Account', style: TextStyle(fontWeight: FontWeight.w900)),
-                      const SizedBox(height: 10),
-                      _InfoRow(label: 'Name', value: name),
-                      _InfoRow(label: 'Email', value: email),
-                      _InfoRow(label: 'Role', value: role),
-                      const SizedBox(height: 6),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // ===== ACTIONS =====
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: _r),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: Icon(Icons.refresh_rounded, color: cs.primary),
-                      title: const Text('Refresh data', style: TextStyle(fontWeight: FontWeight.w800)),
-                      subtitle: const Text('Ambil ulang data akun dari server'),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: _load,
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Icon(Icons.logout_rounded, color: cs.error),
-                      title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
-                      subtitle: const Text('Keluar dari akun sales'),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: _logout,
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-            ],
-          ],
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+      children: [
+        const _HeaderCard(
+          title: 'Akun',
+          subtitle: 'Kelola akun dan keamanan aplikasi.',
+          icon: Icons.person_rounded,
         ),
-      ),
-    );
-  }
-}
-
-class _RoleChipBlue extends StatelessWidget {
-  final String role;
-  const _RoleChipBlue({required this.role});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = role.trim().isEmpty ? '-' : role.toUpperCase();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.18),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(0.22)),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w900,
-          fontSize: 12,
+        const SizedBox(height: 12),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.lock_rounded),
+            title: const Text('Ganti Password'),
+            subtitle: const Text('Coming soon'),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Fitur ganti password menyusul 👍')),
+              );
+            },
+          ),
         ),
-      ),
+        const SizedBox(height: 10),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.logout_rounded),
+            title: const Text('Logout'),
+            onTap: () => _logout(context),
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _InfoRow({required this.label, required this.value});
+class _HeaderCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
 
-  @override
-  Widget build(BuildContext context) {
-    final sub = Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 74,
-            child: Text(label, style: TextStyle(color: sub, fontWeight: FontWeight.w700)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileErrorCard extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-  const _ProfileErrorCard({required this.message, required this.onRetry});
+  const _HeaderCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Row(
           children: [
-            Icon(Icons.error_outline_rounded, color: cs.error, size: 44),
-            const SizedBox(height: 10),
-            const Text('Gagal memuat profile', style: TextStyle(fontWeight: FontWeight.w900)),
-            const SizedBox(height: 6),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Coba lagi'),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: cs.primary.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: cs.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75)),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ProfileSkeleton extends StatelessWidget {
-  final Color bg;
-  const _ProfileSkeleton({required this.bg});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    Widget box(double h) => Container(
-          height: h,
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(18),
-          ),
-        );
-
-    return Column(
-      children: [
-        box(140),
-        const SizedBox(height: 12),
-        box(160),
-        const SizedBox(height: 12),
-        box(170),
-      ],
     );
   }
 }
@@ -691,8 +380,6 @@ class _KpiCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -715,6 +402,41 @@ class _KpiCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActions extends StatelessWidget {
+  final VoidCallback onOpenReports;
+  final VoidCallback onCreate;
+
+  const _QuickActions({required this.onOpenReports, required this.onCreate});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onOpenReports,
+                icon: const Icon(Icons.receipt_long_rounded),
+                label: const Text('Lihat Reports'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: onCreate,
+                icon: const Icon(Icons.add_a_photo_rounded),
+                label: const Text('Buat Report'),
               ),
             ),
           ],
@@ -799,9 +521,7 @@ class _LastReportCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       capturedAt,
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75),
-                      ),
+                      style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75)),
                     ),
                   ],
                 ),

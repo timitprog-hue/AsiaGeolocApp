@@ -38,6 +38,11 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+macos/Pods/
+
+# ===== Web =====
+web/build/
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile
@@ -61,11 +66,6 @@ ios/Pods/
 ios/.symlinks/
 ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
-macos/Pods/
-
-# ===== Web =====
-web/build/
-
 # ===== Windows / Visual Studio extra =====
 .vs/
 *.slnx
