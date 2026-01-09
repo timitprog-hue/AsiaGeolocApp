@@ -129,6 +129,8 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     final acc = r['accuracy_m']?.toString() ?? '-';
     final notes = r['notes']?.toString().trim() ?? '';
 
+    final heroTag = 'report-photo-${widget.reportId}';
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       children: [
@@ -139,23 +141,54 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
             color: cs.surfaceContainerHighest,
             child: url == null
                 ? const Center(child: Icon(Icons.image_not_supported_rounded, size: 42))
-                : Image.network(
-                    url,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    loadingBuilder: (context, child, progress) {
-                      if (progress == null) return child;
-                      return const Center(child: CircularProgressIndicator());
+                : GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => _PhotoViewerPage(
+                            imageUrl: url!,
+                            heroTag: heroTag,
+                          ),
+                        ),
+                      );
                     },
-                    errorBuilder: (_, __, ___) {
-                      return const Center(child: Icon(Icons.broken_image_rounded, size: 42));
-                    },
+                    child: Hero(
+                      tag: heroTag,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            url,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return const Center(child: CircularProgressIndicator());
+                            },
+                            errorBuilder: (_, __, ___) {
+                              return const Center(child: Icon(Icons.broken_image_rounded, size: 42));
+                            },
+                          ),
+                          Positioned(
+                            right: 10,
+                            bottom: 10,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.35),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.zoom_out_map_rounded, color: Colors.white, size: 18),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
           ),
         ),
-
         const SizedBox(height: 12),
-
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -167,7 +200,6 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                   style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
                 ),
                 const SizedBox(height: 12),
-
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -181,14 +213,15 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                           const SizedBox(height: 6),
                           Text(
                             'Koordinat: $lat, $lng • Akurasi: $acc m',
-                            style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75)),
+                            style: TextStyle(
+                              color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75),
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ],
                 ),
-
                 if (notes.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   const Text('Catatan', style: TextStyle(fontWeight: FontWeight.w900)),
@@ -208,6 +241,60 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PhotoViewerPage extends StatelessWidget {
+  final String imageUrl;
+  final String heroTag;
+
+  const _PhotoViewerPage({
+    required this.imageUrl,
+    required this.heroTag,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Center(
+              child: Hero(
+                tag: heroTag,
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 5.0,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return const Center(child: CircularProgressIndicator());
+                    },
+                    errorBuilder: (_, __, ___) {
+                      return const Center(
+                        child: Icon(Icons.broken_image_rounded, color: Colors.white70, size: 60),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close_rounded, color: Colors.white),
+                tooltip: 'Tutup',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

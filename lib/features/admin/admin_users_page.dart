@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 
 import '../../core/api_client.dart';
@@ -273,221 +273,224 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     _searchCtrl.dispose();
     super.dispose();
   }
+    @override
+    Widget build(BuildContext context) {
+      final cs = Theme.of(context).colorScheme;
 
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Users'),
-        actions: [
-          IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _createUser,
-        icon: const Icon(Icons.person_add_alt_1_rounded),
-        label: const Text('Tambah'),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-                    children: [
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Filter', style: TextStyle(fontWeight: FontWeight.w900)),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: _searchCtrl,
-                                decoration: InputDecoration(
-                                  labelText: 'Search (nama / email)',
-                                  prefixIcon: const Icon(Icons.search_rounded),
-                                  suffixIcon: IconButton(
-                                    onPressed: () {
-                                      _searchCtrl.clear();
-                                      _load();
-                                    },
-                                    icon: const Icon(Icons.close_rounded),
-                                  ),
-                                ),
-                                onSubmitted: (_) => _load(),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
+      // ✅ TANPA Scaffold + TANPA AppBar (biar tidak double dengan AdminShell)
+      return Stack(
+        children: [
+          // ===== CONTENT (ISI KAMU TETAP) =====
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(child: Text(_error!))
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+                        children: [
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: DropdownButtonFormField<String>(
-                                      value: _role,
-                                      items: const [
-                                        DropdownMenuItem(value: 'sales', child: Text('sales')),
-                                        DropdownMenuItem(value: 'admin', child: Text('admin')),
-                                      ],
-                                      onChanged: (v) {
-                                        setState(() => _role = v ?? 'sales');
-                                        _load();
-                                      },
-                                      decoration: const InputDecoration(labelText: 'Role'),
+                                  const Text('Filter', style: TextStyle(fontWeight: FontWeight.w900)),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller: _searchCtrl,
+                                    decoration: InputDecoration(
+                                      labelText: 'Search (nama / email)',
+                                      prefixIcon: const Icon(Icons.search_rounded),
+                                      suffixIcon: IconButton(
+                                        onPressed: () {
+                                          _searchCtrl.clear();
+                                          _load();
+                                        },
+                                        icon: const Icon(Icons.close_rounded),
+                                      ),
                                     ),
+                                    onSubmitted: (_) => _load(),
                                   ),
-                                  const SizedBox(width: 10),
-                                  FilledButton.icon(
-                                    onPressed: _load,
-                                    icon: const Icon(Icons.search_rounded),
-                                    label: const Text('Terapkan'),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: DropdownButtonFormField<String>(
+                                          value: _role,
+                                          items: const [
+                                            DropdownMenuItem(value: 'sales', child: Text('sales')),
+                                            DropdownMenuItem(value: 'admin', child: Text('admin')),
+                                          ],
+                                          onChanged: (v) {
+                                            setState(() => _role = v ?? 'sales');
+                                            _load();
+                                          },
+                                          decoration: const InputDecoration(labelText: 'Role'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      FilledButton.icon(
+                                        onPressed: _load,
+                                        icon: const Icon(Icons.search_rounded),
+                                        label: const Text('Terapkan'),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text('Hasil: ${_users.length}', style: TextStyle(color: cs.onSurface.withOpacity(0.7))),
-                      const SizedBox(height: 8),
-
-                      if (_users.isEmpty)
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: const [
-                                Icon(Icons.info_outline_rounded),
-                                SizedBox(width: 10),
-                                Expanded(child: Text('Tidak ada user pada filter ini.')),
-                              ],
                             ),
                           ),
-                        )
-                      else
-                        ..._users.map((u) {
-                          final active = _asBool(u['is_active']);
-                          final role = (u['role'] ?? '').toString();
-                          final name = (u['name'] ?? 'User').toString();
-                          final email = (u['email'] ?? '').toString();
+                          const SizedBox(height: 12),
+                          Text('Hasil: ${_users.length}', style: TextStyle(color: cs.onSurface.withOpacity(0.7))),
+                          const SizedBox(height: 8),
 
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Card(
+                          if (_users.isEmpty)
+                            Card(
                               child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          width: 44,
-                                          height: 44,
-                                          decoration: BoxDecoration(
-                                            color: cs.primary.withOpacity(0.10),
-                                            borderRadius: BorderRadius.circular(14),
-                                          ),
-                                          child: Icon(Icons.person_rounded, color: cs.primary),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      name,
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                      style: const TextStyle(fontWeight: FontWeight.w900),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  _RoleChip(role: role),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                email,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(color: cs.onSurface.withOpacity(0.7)),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                            decoration: BoxDecoration(
-                                              color: active
-                                                  ? Colors.green.withOpacity(0.08)
-                                                  : Colors.red.withOpacity(0.08),
-                                              borderRadius: BorderRadius.circular(14),
-                                              border: Border.all(
-                                                color: active
-                                                    ? Colors.green.withOpacity(0.25)
-                                                    : Colors.red.withOpacity(0.25),
-                                              ),
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  active ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                                                  color: active ? Colors.green : Colors.red,
-                                                  size: 18,
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Expanded(
-                                                  child: Text(
-                                                    active ? 'Active' : 'Inactive',
-                                                    style: const TextStyle(fontWeight: FontWeight.w800),
-                                                  ),
-                                                ),
-                                                Switch(
-                                                  value: active,
-                                                  onChanged: (_) => _toggleActive(u),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: OutlinedButton.icon(
-                                            onPressed: () => _resetPassword(u),
-                                            icon: const Icon(Icons.lock_reset_rounded),
-                                            label: const Text('Reset Password'),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: const [
+                                    Icon(Icons.info_outline_rounded),
+                                    SizedBox(width: 10),
+                                    Expanded(child: Text('Tidak ada user pada filter ini.')),
                                   ],
                                 ),
                               ),
-                            ),
-                          );
-                        }),
-                    ],
-                  ),
-                ),
-    );
-  }
+                            )
+                          else
+                            ..._users.map((u) {
+                              final active = _asBool(u['is_active']);
+                              final role = (u['role'] ?? '').toString();
+                              final name = (u['name'] ?? 'User').toString();
+                              final email = (u['email'] ?? '').toString();
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Card(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 44,
+                                              height: 44,
+                                              decoration: BoxDecoration(
+                                                color: cs.primary.withOpacity(0.10),
+                                                borderRadius: BorderRadius.circular(14),
+                                              ),
+                                              child: Icon(Icons.person_rounded, color: cs.primary),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          name,
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.ellipsis,
+                                                          style: const TextStyle(fontWeight: FontWeight.w900),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      _RoleChip(role: role),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    email,
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: TextStyle(color: cs.onSurface.withOpacity(0.7)),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                                decoration: BoxDecoration(
+                                                  color: active
+                                                      ? Colors.green.withOpacity(0.08)
+                                                      : Colors.red.withOpacity(0.08),
+                                                  borderRadius: BorderRadius.circular(14),
+                                                  border: Border.all(
+                                                    color: active
+                                                        ? Colors.green.withOpacity(0.25)
+                                                        : Colors.red.withOpacity(0.25),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      active ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                                                      color: active ? Colors.green : Colors.red,
+                                                      size: 18,
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: Text(
+                                                        active ? 'Active' : 'Inactive',
+                                                        style: const TextStyle(fontWeight: FontWeight.w800),
+                                                      ),
+                                                    ),
+                                                    Switch(
+                                                      value: active,
+                                                      onChanged: (_) => _toggleActive(u),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: OutlinedButton.icon(
+                                                onPressed: () => _resetPassword(u),
+                                                icon: const Icon(Icons.lock_reset_rounded),
+                                                label: const Text('Reset Password'),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                        ],
+                      ),
+                    ),
+
+          // ✅ FAB tetap ada walau tanpa Scaffold
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: FloatingActionButton.extended(
+              onPressed: _createUser,
+              icon: const Icon(Icons.person_add_alt_1_rounded),
+              label: const Text('Tambah'),
+            ),
+          ),
+        ],
+      );
+    }
 }
 
 class _RoleChip extends StatelessWidget {

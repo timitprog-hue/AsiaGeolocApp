@@ -126,7 +126,9 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                       const SizedBox(height: 4),
                       Text(
                         email,
-                        style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75)),
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -162,7 +164,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
 
         const SizedBox(height: 12),
 
-        // Actions
+        // Actions (✅ tinggal 1 logout, no double)
         Card(
           child: Column(
             children: [
@@ -182,25 +184,6 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                 onTap: _logout,
               ),
             ],
-          ),
-        ),
-
-        const SizedBox(height: 18),
-
-        // Bottom CTA (lebih “niat”)
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: cs.error,
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              textStyle: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-            onPressed: _logout,
-            icon: const Icon(Icons.logout_rounded),
-            label: const Text('Logout'),
           ),
         ),
       ],
@@ -226,7 +209,10 @@ class _RoleChip extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(text, style: TextStyle(color: fg, fontWeight: FontWeight.w900, fontSize: 12)),
+      child: Text(
+        text,
+        style: TextStyle(color: fg, fontWeight: FontWeight.w900, fontSize: 12),
+      ),
     );
   }
 }

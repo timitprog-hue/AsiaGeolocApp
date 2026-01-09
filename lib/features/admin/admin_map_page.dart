@@ -302,12 +302,6 @@ class _AdminMapPageState extends State<AdminMapPage> {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Map'),
-        actions: [
-          IconButton(onPressed: _loadAll, icon: const Icon(Icons.refresh_rounded)),
-        ],
-      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
