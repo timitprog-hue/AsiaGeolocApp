@@ -7,6 +7,8 @@ import '../auth/login_page.dart';
 import '../reports/report_create_page.dart';
 import '../reports/report_detail_page.dart';
 import '../reports/report_list_page.dart';
+import '../../core/live_location_service.dart';
+
 
 class SalesShell extends StatefulWidget {
   const SalesShell({super.key});
@@ -17,6 +19,21 @@ class SalesShell extends StatefulWidget {
 
 class _SalesShellState extends State<SalesShell> {
   int idx = 0;
+
+  final _live = LiveLocationService();
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ mulai kirim lokasi berkala (boleh 10 detik dulu biar kerasa live)
+    _live.start(interval: const Duration(seconds: 10));
+  }
+
+  @override
+  void dispose() {
+    _live.stop();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +54,6 @@ class _SalesShellState extends State<SalesShell> {
             context,
             MaterialPageRoute(builder: (_) => const ReportCreatePage()),
           );
-          // Kalau kamu ingin auto-refresh Home/Reports, nanti kita bisa tambah notifier.
-          // Untuk sekarang cukup balik aja.
           if (ok == true && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Report berhasil dikirim')),
@@ -61,6 +76,7 @@ class _SalesShellState extends State<SalesShell> {
     );
   }
 }
+
 
 class SalesHomePage extends StatefulWidget {
   const SalesHomePage({super.key});
