@@ -15,8 +15,11 @@ class AdminMapPage extends StatefulWidget {
 }
 
 class _AdminMapPageState extends State<AdminMapPage> {
-  bool _loading = true; // hanya untuk first load
-  bool _busy = false; // untuk apply / refresh tanpa dispose map
+  // ✅ Modern blue accents (biar konsisten walau theme app beda)
+  static const Color primaryBlue = Color(0xFF1E6BFF);
+
+  bool _loading = true; // hanya first load
+  bool _busy = false; // apply/refresh tanpa dispose map
   String? _error;
 
   // filters
@@ -38,6 +41,9 @@ class _AdminMapPageState extends State<AdminMapPage> {
   // cache alamat (reverse geocode)
   final Map<String, String> _addrCache = {}; // key: "lat,lng"
 
+  // =========================
+  // Helpers
+  // =========================
   int _asInt(dynamic v) {
     if (v is int) return v;
     if (v is String) return int.tryParse(v) ?? 0;
@@ -71,6 +77,9 @@ class _AdminMapPageState extends State<AdminMapPage> {
     return DateFormat("dd MMM • HH:mm:ss").format(dt);
   }
 
+  // =========================
+  // API
+  // =========================
   Future<void> _loadUsers() async {
     final storage = AuthStorage();
     final api = ApiClient(storage);
@@ -119,9 +128,7 @@ class _AdminMapPageState extends State<AdminMapPage> {
         await _gmap!.animateCamera(
           CameraUpdate.newLatLngZoom(LatLng(lat, lng), 14.2),
         );
-      } catch (_) {
-        // ignore (controller bisa invalid kalau map lagi rebuild)
-      }
+      } catch (_) {}
     }
 
     if (mounted) setState(() {});
@@ -152,7 +159,10 @@ class _AdminMapPageState extends State<AdminMapPage> {
     }
   }
 
-  Set<Marker> _buildMarkers(BuildContext context) {
+  // =========================
+  // Markers + UI
+  // =========================
+  Set<Marker> _buildMarkers() {
     return liveRows.map((r) {
       final user = r['user'];
       String name = 'Sales';
@@ -200,19 +210,46 @@ class _AdminMapPageState extends State<AdminMapPage> {
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (_) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-            const SizedBox(height: 6),
-            Text(isOnline ? 'Status: LIVE' : 'Status: OFFLINE'),
-            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    name,
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: (isOnline ? primaryBlue : Colors.red).withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: (isOnline ? primaryBlue : Colors.red).withOpacity(0.25),
+                    ),
+                  ),
+                  child: Text(
+                    isOnline ? 'LIVE' : 'OFFLINE',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: isOnline ? primaryBlue : Colors.red,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             Text('Update: $updated'),
             const SizedBox(height: 10),
-
             if (lat != null && lng != null)
               FutureBuilder<String>(
                 future: _resolveAddress(lat, lng),
@@ -226,12 +263,17 @@ class _AdminMapPageState extends State<AdminMapPage> {
               ),
             const SizedBox(height: 6),
             Text('LatLng: ${lat ?? '-'}, ${lng ?? '-'} • Acc: $acc m'),
-
             const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
                   child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: primaryBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
                     onPressed: (lat == null || lng == null || _gmap == null)
                         ? null
                         : () async {
@@ -254,6 +296,9 @@ class _AdminMapPageState extends State<AdminMapPage> {
     );
   }
 
+  // =========================
+  // Lifecycle + polling
+  // =========================
   Future<void> _loadAll() async {
     setState(() {
       _loading = true;
@@ -326,130 +371,264 @@ class _AdminMapPageState extends State<AdminMapPage> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
+  // =========================
+  // UI widgets
+  // =========================
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Live Map (Sales)'),
-        actions: [
-          IconButton(
-            onPressed: () async {
-              setState(() => _busy = true);
-              try {
-                await _loadLiveLocations(moveCameraIfFirst: false);
-              } finally {
-                if (mounted) setState(() => _busy = false);
-              }
-            },
-            icon: const Icon(Icons.refresh_rounded),
+    String selectedName() {
+      if (selectedUserId == null) return 'Semua Sales';
+      final u = users.where((e) => _asInt(e['id']) == selectedUserId).toList();
+      if (u.isEmpty) return 'Sales';
+      return (u.first['name'] ?? u.first['email'] ?? 'Sales').toString();
+    }
+
+    return AppBar(
+      backgroundColor: primaryBlue,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      actions: [
+        const SizedBox(width: 4),
+      ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(92),
+        child: Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            color: primaryBlue,
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(18)),
           ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!))
-              : Stack(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: Column(
+            children: [
+              // ✅ Single header area (hapus "double header"): filter + tombol di appbar bottom
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.18)),
+                ),
+                child: Row(
                   children: [
-                    Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-                          child: Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: DropdownButtonFormField<int?>(
-                                          value: selectedUserId,
-                                          items: [
-                                            const DropdownMenuItem<int?>(
-                                              value: null,
-                                              child: Text('Semua Sales'),
-                                            ),
-                                            ...users.map((u) {
-                                              final id = _asInt(u['id']);
-                                              final name = (u['name'] ?? u['email'] ?? 'Sales').toString();
-                                              return DropdownMenuItem<int?>(
-                                                value: id,
-                                                child: Text(name, overflow: TextOverflow.ellipsis),
-                                              );
-                                            }),
-                                          ],
-                                          onChanged: (v) => setState(() => selectedUserId = v),
-                                          decoration: const InputDecoration(labelText: 'Sales'),
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: _busy
+                            ? null
+                            : () async {
+                                final picked = await showModalBottomSheet<int?>(
+                                  context: context,
+                                  showDragHandle: true,
+                                  backgroundColor: cs.surface,
+                                  builder: (_) => SafeArea(
+                                    child: ListView(
+                                      shrinkWrap: true,
+                                      children: [
+                                        const Padding(
+                                          padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+                                          child: Text(
+                                            'Pilih Sales',
+                                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      FilledButton(
-                                        onPressed: _busy ? null : _apply,
-                                        child: const Text('Terapkan'),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      IconButton(
-                                        onPressed: _busy ? null : _reset,
-                                        icon: Icon(Icons.restart_alt_rounded, color: cs.primary),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      'Sales terpantau: ${liveRows.length} (auto refresh 5 detik)',
-                                      style: TextStyle(color: cs.onSurface.withOpacity(0.7)),
+                                        ListTile(
+                                          title: const Text('Semua Sales'),
+                                          leading: const Icon(Icons.groups_rounded),
+                                          trailing: selectedUserId == null
+                                              ? Icon(Icons.check_rounded, color: cs.primary)
+                                              : null,
+                                          onTap: () => Navigator.pop(context, null),
+                                        ),
+                                        const Divider(height: 1),
+                                        ...users.map((u) {
+                                          final id = _asInt(u['id']);
+                                          final name = (u['name'] ?? u['email'] ?? 'Sales').toString();
+                                          final active = selectedUserId == id;
+                                          return ListTile(
+                                            title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                            leading: const Icon(Icons.person_pin_circle_rounded),
+                                            trailing: active ? Icon(Icons.check_rounded, color: cs.primary) : null,
+                                            onTap: () => Navigator.pop(context, id),
+                                          );
+                                        }),
+                                        const SizedBox(height: 10),
+                                      ],
                                     ),
+                                  ),
+                                );
+
+                                if (!mounted) return;
+                                setState(() => selectedUserId = picked);
+                              },
+                        child: Row(
+                          children: [
+                            const Icon(Icons.filter_alt_rounded, color: Colors.white),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    selectedName(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Auto refresh 5 detik',
+                                    style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                        ),
-                        Expanded(
-                          child: GoogleMap(
-                            initialCameraPosition: _initialCam,
-                            myLocationButtonEnabled: false,
-                            myLocationEnabled: false,
-                            zoomControlsEnabled: false,
-                            markers: _buildMarkers(context),
-                            onMapCreated: (c) async {
-                              _gmap = c;
-                              // fokus ke yang terbaru pas pertama kali map jadi
-                              await _loadLiveLocations(moveCameraIfFirst: true);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // overlay loading kecil biar map gak ke-dispose
-                    if (_busy)
-                      Positioned(
-                        top: 12,
-                        right: 12,
-                        child: Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                                SizedBox(width: 8),
-                                Text('Memuat...'),
-                              ],
-                            ),
-                          ),
+                            Icon(Icons.expand_more_rounded, color: Colors.white.withOpacity(0.95)),
+                          ],
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 10),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: primaryBlue,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: _busy ? null : _apply,
+                      child: const Text('Terapkan'),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Reset',
+                      onPressed: _busy ? null : _reset,
+                      icon: const Icon(Icons.restart_alt_rounded, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.white.withOpacity(0.18)),
+                    ),
+                    child: Text(
+                      'Sales terpantau: ${liveRows.length}',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (_busy)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: Colors.white.withOpacity(0.18)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                          SizedBox(width: 8),
+                          Text('Memuat...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline_rounded, size: 42, color: Colors.red),
+            const SizedBox(height: 10),
+            Text(
+              _error ?? 'Terjadi kesalahan',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: primaryBlue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              onPressed: _loadAll,
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: _buildAppBar(context),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? _buildErrorView()
+              : Stack(
+                  children: [
+                    // ✅ Map full (filter udah pindah ke AppBar bottom, jadi header cuma 1)
+                    GoogleMap(
+                      initialCameraPosition: _initialCam,
+                      myLocationButtonEnabled: false,
+                      myLocationEnabled: false,
+                      zoomControlsEnabled: false,
+                      markers: _buildMarkers(),
+                      onMapCreated: (c) async {
+                        _gmap = c;
+                        // fokus ke yang terbaru pas pertama kali map jadi
+                        await _loadLiveLocations(moveCameraIfFirst: true);
+                      },
+                    ),
+
+                    // ✅ floating micro overlay (lebih rapih, modern)
+                    Positioned(
+                      left: 12,
+                      bottom: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.55),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withOpacity(0.12)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.my_location_rounded, color: Colors.white, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Marker: ${liveRows.length}',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
     );
