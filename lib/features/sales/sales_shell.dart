@@ -51,7 +51,6 @@ class _SalesShellState extends State<SalesShell> {
       scaffoldBackgroundColor: base.brightness == Brightness.dark
           ? const Color(0xFF0B1220)
           : const Color(0xFFF6F8FF),
-
       cardTheme: CardThemeData(
         elevation: 0,
         color: base.brightness == Brightness.dark
@@ -61,7 +60,6 @@ class _SalesShellState extends State<SalesShell> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         margin: EdgeInsets.zero,
       ),
-
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
@@ -74,12 +72,10 @@ class _SalesShellState extends State<SalesShell> {
           color: cs.onSurface,
         ),
       ),
-
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
-
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -110,7 +106,6 @@ class _SalesShellState extends State<SalesShell> {
           return Scaffold(
             appBar: _BlueAppBar(title: titles[idx]),
             body: pages[idx],
-
             floatingActionButton: FloatingActionButton.extended(
               onPressed: () async {
                 final ok = await Navigator.push<bool>(
@@ -130,7 +125,6 @@ class _SalesShellState extends State<SalesShell> {
             ),
             floatingActionButtonLocation:
                 FloatingActionButtonLocation.centerFloat,
-
             bottomNavigationBar: BottomNavigationBar(
               currentIndex: idx,
               onTap: (v) => setState(() => idx = v),
@@ -297,16 +291,13 @@ class _SalesHomePageState extends State<SalesHomePage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 110),
           children: [
-            // ✅ HEADER DASHBOARD (BIRU TERANG MODERN)
             _SalesSummaryCard(
               title: 'Aktivitas Sales',
               total: todayCount,
               subtitle: 'Total laporan hari ini',
               icon: Icons.assignment_rounded,
             ),
-
             const SizedBox(height: 12),
-
             if (_loading) ...[
               const _KpiSkeleton(),
             ] else if (_error != null) ...[
@@ -334,7 +325,6 @@ class _SalesHomePageState extends State<SalesHomePage> {
                 ],
               ),
               const SizedBox(height: 12),
-
               _QuickActions(
                 onCreate: () async {
                   final ok = await Navigator.push<bool>(
@@ -350,9 +340,7 @@ class _SalesHomePageState extends State<SalesHomePage> {
                   );
                 },
               ),
-
               const SizedBox(height: 12),
-
               _LastReportCard(
                 report: lastReport,
                 fmtDate: _fmtDate,
@@ -400,12 +388,6 @@ class _SalesProfilePageState extends State<SalesProfilePage> {
       final storage = AuthStorage();
       final api = ApiClient(storage);
 
-      // ✅ sesuaikan salah satu endpoint yang ada di Laravel kamu:
-      // final res = await api.dio.get('/me');
-      // atau:
-      // final res = await api.dio.get('/profile');
-
-      // Aku buat: coba /me dulu, kalau 404 coba /profile
       dynamic res;
       try {
         res = await api.dio.get('/me');
@@ -470,78 +452,20 @@ class _SalesProfilePageState extends State<SalesProfilePage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
-            // ====== Header Card (user) ======
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: cs.primary.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Icon(Icons.person_rounded, color: cs.primary, size: 28),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _loading ? 'Memuat...' : name,
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _loading ? ' ' : email,
-                            style: TextStyle(
-                              color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: cs.primary.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                role.toUpperCase(),
-                                style: TextStyle(
-                                  color: cs.primary,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 12,
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
+            // ✅ pakai widget yang sebelumnya kuning
+            const _ProfileHeaderBlue(),
             const SizedBox(height: 12),
 
-            // ====== Account Card (table) ======
+            const _SectionTitle(title: 'Account'),
+            const SizedBox(height: 10),
+
+            // Account info
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Account', style: TextStyle(fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 12),
-
                     _InfoRow(label: 'Name', value: _loading ? '...' : name),
                     const SizedBox(height: 10),
                     _InfoRow(label: 'Email', value: _loading ? '...' : email),
@@ -554,7 +478,7 @@ class _SalesProfilePageState extends State<SalesProfilePage> {
 
             const SizedBox(height: 12),
 
-            // ====== Error (kalau gagal load) ======
+            // Error info
             if (_error != null) ...[
               Container(
                 padding: const EdgeInsets.all(14),
@@ -570,7 +494,10 @@ class _SalesProfilePageState extends State<SalesProfilePage> {
                     Expanded(
                       child: Text(
                         _error!,
-                        style: TextStyle(color: cs.error, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: cs.error,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
@@ -579,28 +506,27 @@ class _SalesProfilePageState extends State<SalesProfilePage> {
               const SizedBox(height: 12),
             ],
 
-            // ====== Menu List ======
-            Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: Icon(Icons.refresh_rounded, color: cs.primary),
-                    title: const Text('Refresh data', style: TextStyle(fontWeight: FontWeight.w800)),
-                    subtitle: const Text('Ambil ulang data akun dari server'),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: _loadMe,
-                  ),
-                  Divider(height: 1, color: cs.onSurface.withOpacity(0.08)),
-                  ListTile(
-                    leading: Icon(Icons.logout_rounded, color: cs.error),
-                    title: Text('Logout',
-                        style: TextStyle(fontWeight: FontWeight.w900, color: cs.error)),
-                    subtitle: const Text('Keluar dari akun'),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: _logout,
-                  ),
-                ],
-              ),
+            const _SectionTitle(title: 'Actions'),
+            const SizedBox(height: 10),
+
+            // ✅ pakai widget _ModernTile biar ga kuning
+            _ModernTile(
+              icon: Icons.refresh_rounded,
+              title: 'Refresh data',
+              subtitle: 'Ambil ulang data akun dari server',
+              onTap: _loadMe,
+            ),
+            const SizedBox(height: 10),
+
+
+            const SizedBox(height: 10),
+
+            _ModernTile(
+              icon: Icons.logout_rounded,
+              title: 'Logout',
+              subtitle: 'Keluar dari akun',
+              destructive: true,
+              onTap: _logout,
             ),
           ],
         ),
@@ -641,7 +567,6 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-
 /* =========================
    HEADER WIDGETS
 ========================= */
@@ -663,7 +588,6 @@ class _SalesSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    // biru terang modern (match tombol)
     const g1 = Color(0xFF1E6BFF);
     const g2 = Color(0xFF0D4BFF);
 
@@ -761,8 +685,8 @@ class _ProfileHeaderBlue extends StatelessWidget {
               color: Colors.white.withOpacity(0.18),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: const Icon(Icons.person_rounded,
-                color: Colors.white, size: 30),
+            child:
+                const Icon(Icons.person_rounded, color: Colors.white, size: 30),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -909,8 +833,6 @@ class _KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -933,7 +855,10 @@ class _KpiCard extends StatelessWidget {
                   Text(
                     title,
                     style: TextStyle(
-                      color: cs.onSurface.withOpacity(0.65),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.65),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
