@@ -3,12 +3,12 @@ import 'package:intl/intl.dart';
 
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
+import '../../core/live_location_service.dart';
+
 import '../auth/login_page.dart';
 import '../reports/report_create_page.dart';
 import '../reports/report_detail_page.dart';
 import '../reports/report_list_page.dart';
-import '../../core/live_location_service.dart';
-
 
 class SalesShell extends StatefulWidget {
   const SalesShell({super.key});
@@ -19,13 +19,11 @@ class SalesShell extends StatefulWidget {
 
 class _SalesShellState extends State<SalesShell> {
   int idx = 0;
-
   final _live = LiveLocationService();
 
   @override
   void initState() {
     super.initState();
-    // ✅ mulai kirim lokasi berkala (boleh 10 detik dulu biar kerasa live)
     _live.start(interval: const Duration(seconds: 10));
   }
 
@@ -37,46 +35,160 @@ class _SalesShellState extends State<SalesShell> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ kunci primary biar biru terang modern (seperti tombol Buat Report)
+    const primaryBlue = Color(0xFF1E6BFF);
+    final base = Theme.of(context);
+
+    final cs = ColorScheme.fromSeed(
+      seedColor: primaryBlue,
+      brightness: base.brightness,
+      primary: primaryBlue,
+    );
+
+    final blueTheme = base.copyWith(
+      colorScheme: cs,
+      useMaterial3: true,
+      scaffoldBackgroundColor: base.brightness == Brightness.dark
+          ? const Color(0xFF0B1220)
+          : const Color(0xFFF6F8FF),
+
+      cardTheme: CardThemeData(
+        elevation: 0,
+        color: base.brightness == Brightness.dark
+            ? const Color(0xFF101A2D)
+            : Colors.white,
+        shadowColor: Colors.black.withOpacity(0.08),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        margin: EdgeInsets.zero,
+      ),
+
+      appBarTheme: AppBarTheme(
+        centerTitle: false,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        backgroundColor: Colors.transparent,
+        foregroundColor: cs.onSurface,
+        titleTextStyle: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w900,
+          color: cs.onSurface,
+        ),
+      ),
+
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+        backgroundColor: base.brightness == Brightness.dark
+            ? const Color(0xFF0E1730)
+            : Colors.white,
+        selectedItemColor: primaryBlue,
+        unselectedItemColor: cs.onSurface.withOpacity(0.55),
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+    );
+
     final pages = <Widget>[
       const SalesHomePage(),
       const ReportListPage(),
       const SalesProfilePage(),
     ];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(idx == 0 ? 'Home' : idx == 1 ? 'Reports' : 'Profile'),
-      ),
-      body: pages[idx],
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final ok = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(builder: (_) => const ReportCreatePage()),
+    final titles = ['Dashboard', 'Reports', 'Profile'];
+
+    return Theme(
+      data: blueTheme,
+      child: Builder(
+        builder: (context) {
+          final cs2 = Theme.of(context).colorScheme;
+
+          return Scaffold(
+            appBar: _BlueAppBar(title: titles[idx]),
+            body: pages[idx],
+
+            floatingActionButton: FloatingActionButton.extended(
+              onPressed: () async {
+                final ok = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ReportCreatePage()),
+                );
+                if (ok == true && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Report berhasil dikirim')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.add_a_photo_rounded),
+              label: const Text('Buat Report'),
+              backgroundColor: cs2.primary,
+              foregroundColor: cs2.onPrimary,
+            ),
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerFloat,
+
+            bottomNavigationBar: BottomNavigationBar(
+              currentIndex: idx,
+              onTap: (v) => setState(() => idx = v),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.dashboard_rounded),
+                  label: 'Home',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.receipt_long_rounded),
+                  label: 'Reports',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person_rounded),
+                  label: 'Profile',
+                ),
+              ],
+            ),
           );
-          if (ok == true && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Report berhasil dikirim')),
-            );
-          }
         },
-        icon: const Icon(Icons.add_a_photo_rounded),
-        label: const Text('Buat Report'),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: idx,
-        onTap: (v) => setState(() => idx = v),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long_rounded), label: 'Reports'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profile'),
-        ],
       ),
     );
   }
 }
 
+class _BlueAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final String title;
+  const _BlueAppBar({required this.title});
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 10);
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return AppBar(
+      title: Text(title),
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              cs.primary.withOpacity(0.14),
+              cs.primary.withOpacity(0.06),
+              Colors.transparent,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/* =========================
+   DASHBOARD (HOME)
+========================= */
 
 class SalesHomePage extends StatefulWidget {
   const SalesHomePage({super.key});
@@ -136,10 +248,8 @@ class _SalesHomePageState extends State<SalesHomePage> {
 
         DateTime? dt;
         try {
-          // captured_at biasanya ISO
           dt = DateTime.parse(raw.toString()).toLocal();
         } catch (_) {
-          // fallback kalau format SQL "yyyy-MM-dd HH:mm:ss"
           try {
             dt = DateFormat("yyyy-MM-dd HH:mm:ss").parse(raw.toString());
           } catch (_) {
@@ -185,13 +295,16 @@ class _SalesHomePageState extends State<SalesHomePage> {
       child: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 110),
           children: [
-            _HeaderCard(
+            // ✅ HEADER DASHBOARD (BIRU TERANG MODERN)
+            _SalesSummaryCard(
               title: 'Aktivitas Sales',
-              subtitle: 'Pastikan report dikirim dengan foto & lokasi yang akurat.',
-              icon: Icons.location_on_rounded,
+              total: todayCount,
+              subtitle: 'Total laporan hari ini',
+              icon: Icons.assignment_rounded,
             ),
+
             const SizedBox(height: 12),
 
             if (_loading) ...[
@@ -206,7 +319,7 @@ class _SalesHomePageState extends State<SalesHomePage> {
                       title: 'Hari ini',
                       value: todayCount.toString(),
                       icon: Icons.today_rounded,
-                      color: cs.primary,
+                      tint: cs.primary,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -214,8 +327,8 @@ class _SalesHomePageState extends State<SalesHomePage> {
                     child: _KpiCard(
                       title: '7 hari',
                       value: weekCount.toString(),
-                      icon: Icons.bar_chart_rounded,
-                      color: cs.secondary,
+                      icon: Icons.auto_graph_rounded,
+                      tint: cs.primary,
                     ),
                   ),
                 ],
@@ -231,8 +344,10 @@ class _SalesHomePageState extends State<SalesHomePage> {
                   if (ok == true) _load();
                 },
                 onOpenReports: () {
-                  // kalau kamu ingin pindah ke tab Reports: nanti kita buat callback dari shell
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportListPage()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReportListPage()),
+                  );
                 },
               ),
 
@@ -244,7 +359,9 @@ class _SalesHomePageState extends State<SalesHomePage> {
                 onOpen: (id) {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => ReportDetailPage(reportId: id)),
+                    MaterialPageRoute(
+                      builder: (_) => ReportDetailPage(reportId: id),
+                    ),
                   );
                 },
               ),
@@ -256,10 +373,67 @@ class _SalesHomePageState extends State<SalesHomePage> {
   }
 }
 
-class SalesProfilePage extends StatelessWidget {
+/* =========================
+   PROFILE
+========================= */
+
+class SalesProfilePage extends StatefulWidget {
   const SalesProfilePage({super.key});
 
-  Future<void> _logout(BuildContext context) async {
+  @override
+  State<SalesProfilePage> createState() => _SalesProfilePageState();
+}
+
+class _SalesProfilePageState extends State<SalesProfilePage> {
+  bool _loading = true;
+  String? _error;
+
+  Map<String, dynamic>? me; // {name,email,role}
+
+  Future<void> _loadMe() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final storage = AuthStorage();
+      final api = ApiClient(storage);
+
+      // ✅ sesuaikan salah satu endpoint yang ada di Laravel kamu:
+      // final res = await api.dio.get('/me');
+      // atau:
+      // final res = await api.dio.get('/profile');
+
+      // Aku buat: coba /me dulu, kalau 404 coba /profile
+      dynamic res;
+      try {
+        res = await api.dio.get('/me');
+      } catch (_) {
+        res = await api.dio.get('/profile');
+      }
+
+      final data = (res.data is Map && res.data['data'] != null)
+          ? (res.data['data'] as Map).cast<String, dynamic>()
+          : (res.data as Map).cast<String, dynamic>();
+
+      setState(() {
+        me = {
+          'name': data['name'] ?? data['nama'] ?? '-',
+          'email': data['email'] ?? '-',
+          'role': data['role'] ?? data['level'] ?? data['jabatan'] ?? '-',
+        };
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Gagal ambil data akun.\n$e';
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _logout() async {
     final storage = AuthStorage();
     final api = ApiClient(storage);
 
@@ -268,8 +442,8 @@ class SalesProfilePage extends StatelessWidget {
     } catch (_) {}
 
     await storage.clearToken();
+    if (!mounted) return;
 
-    if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginPage()),
       (_) => false,
@@ -277,34 +451,189 @@ class SalesProfilePage extends StatelessWidget {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _loadMe();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-      children: [
-        const _HeaderCard(
-          title: 'Akun',
-          subtitle: 'Kelola akun dan keamanan aplikasi.',
-          icon: Icons.person_rounded,
+    final cs = Theme.of(context).colorScheme;
+
+    final name = (me?['name'] ?? '-') as String;
+    final email = (me?['email'] ?? '-') as String;
+    final role = (me?['role'] ?? '-') as String;
+
+    return SafeArea(
+      child: RefreshIndicator(
+        onRefresh: _loadMe,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: [
+            // ====== Header Card (user) ======
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: cs.primary.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Icon(Icons.person_rounded, color: cs.primary, size: 28),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _loading ? 'Memuat...' : name,
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _loading ? ' ' : email,
+                            style: TextStyle(
+                              color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: cs.primary.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                role.toUpperCase(),
+                                style: TextStyle(
+                                  color: cs.primary,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 12,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // ====== Account Card (table) ======
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Account', style: TextStyle(fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 12),
+
+                    _InfoRow(label: 'Name', value: _loading ? '...' : name),
+                    const SizedBox(height: 10),
+                    _InfoRow(label: 'Email', value: _loading ? '...' : email),
+                    const SizedBox(height: 10),
+                    _InfoRow(label: 'Role', value: _loading ? '...' : role),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // ====== Error (kalau gagal load) ======
+            if (_error != null) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: cs.error.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: cs.error.withOpacity(0.20)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline_rounded, color: cs.error),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: TextStyle(color: cs.error, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // ====== Menu List ======
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.refresh_rounded, color: cs.primary),
+                    title: const Text('Refresh data', style: TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: const Text('Ambil ulang data akun dari server'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: _loadMe,
+                  ),
+                  Divider(height: 1, color: cs.onSurface.withOpacity(0.08)),
+                  ListTile(
+                    leading: Icon(Icons.logout_rounded, color: cs.error),
+                    title: Text('Logout',
+                        style: TextStyle(fontWeight: FontWeight.w900, color: cs.error)),
+                    subtitle: const Text('Keluar dari akun'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: _logout,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.lock_rounded),
-            title: const Text('Ganti Password'),
-            subtitle: const Text('Coming soon'),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Fitur ganti password menyusul 👍')),
-              );
-            },
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 72,
+          child: Text(
+            label,
+            style: TextStyle(color: muted, fontWeight: FontWeight.w700),
           ),
         ),
-        const SizedBox(height: 10),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.logout_rounded),
-            title: const Text('Logout'),
-            onTap: () => _logout(context),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
       ],
@@ -312,15 +641,270 @@ class SalesProfilePage extends StatelessWidget {
   }
 }
 
-class _HeaderCard extends StatelessWidget {
+
+/* =========================
+   HEADER WIDGETS
+========================= */
+
+class _SalesSummaryCard extends StatelessWidget {
   final String title;
+  final int total;
   final String subtitle;
   final IconData icon;
 
-  const _HeaderCard({
+  const _SalesSummaryCard({
     required this.title,
+    required this.total,
     required this.subtitle,
     required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    // biru terang modern (match tombol)
+    const g1 = Color(0xFF1E6BFF);
+    const g2 = Color(0xFF0D4BFF);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [g1, g2],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: cs.primary.withOpacity(0.30),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: Colors.white, size: 26),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$subtitle: $total',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.90),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileHeaderBlue extends StatelessWidget {
+  const _ProfileHeaderBlue();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    const g1 = Color(0xFF1E6BFF);
+    const g2 = Color(0xFF0D4BFF);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [g1, g2],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: cs.primary.withOpacity(0.30),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(Icons.person_rounded,
+                color: Colors.white, size: 30),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Akun Sales',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Kelola akun, keamanan, dan sesi login.',
+                  style: TextStyle(
+                    color: Color(0xE6FFFFFF),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/* =========================
+   PROFILE COMPONENTS
+========================= */
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  const _SectionTitle({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Text(
+      title.toUpperCase(),
+      style: TextStyle(
+        fontSize: 12,
+        letterSpacing: 0.8,
+        fontWeight: FontWeight.w900,
+        color: cs.onSurface.withOpacity(0.55),
+      ),
+    );
+  }
+}
+
+class _ModernTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+  final bool destructive;
+
+  const _ModernTile({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+    this.destructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tint = destructive ? cs.error : cs.primary;
+
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: tint.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: tint),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        color: destructive ? cs.error : cs.onSurface,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle!,
+                        style: TextStyle(
+                          color: cs.onSurface.withOpacity(0.70),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  color: cs.onSurface.withOpacity(0.55)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/* =========================
+   SHARED WIDGETS
+========================= */
+
+class _KpiCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color tint;
+
+  const _KpiCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.tint,
   });
 
   @override
@@ -336,71 +920,31 @@ class _HeaderCard extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: cs.primary.withOpacity(0.10),
-                borderRadius: BorderRadius.circular(14),
+                color: tint.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(icon, color: cs.primary),
+              child: Icon(icon, color: tint),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                  const SizedBox(height: 4),
                   Text(
-                    subtitle,
-                    style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75)),
+                    title,
+                    style: TextStyle(
+                      color: cs.onSurface.withOpacity(0.65),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _KpiCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _KpiCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: TextStyle(color: cs.onSurface.withOpacity(0.65))),
                   const SizedBox(height: 6),
-                  Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -415,13 +959,18 @@ class _QuickActions extends StatelessWidget {
   final VoidCallback onOpenReports;
   final VoidCallback onCreate;
 
-  const _QuickActions({required this.onOpenReports, required this.onCreate});
+  const _QuickActions({
+    required this.onOpenReports,
+    required this.onCreate,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Row(
           children: [
             Expanded(
@@ -429,6 +978,13 @@ class _QuickActions extends StatelessWidget {
                 onPressed: onOpenReports,
                 icon: const Icon(Icons.receipt_long_rounded),
                 label: const Text('Lihat Reports'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  side: BorderSide(color: cs.primary.withOpacity(0.25)),
+                ),
               ),
             ),
             const SizedBox(width: 10),
@@ -437,6 +993,12 @@ class _QuickActions extends StatelessWidget {
                 onPressed: onCreate,
                 icon: const Icon(Icons.add_a_photo_rounded),
                 label: const Text('Buat Report'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
               ),
             ),
           ],
@@ -472,7 +1034,7 @@ class _LastReportCard extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Belum ada report. Tekan "Buat Report" untuk mulai.',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
             ],
@@ -497,11 +1059,11 @@ class _LastReportCard extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(14),
+                  color: cs.primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(Icons.history_rounded, color: cs.primary),
               ),
@@ -510,23 +1072,46 @@ class _LastReportCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Report terakhir', style: TextStyle(fontWeight: FontWeight.w900)),
+                    Text(
+                      'Report terakhir',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        color: cs.onSurface,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Text(
                       address,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        height: 1.15,
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      capturedAt,
-                      style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(Icons.schedule_rounded,
+                            size: 16,
+                            color: cs.onSurface.withOpacity(0.55)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            capturedAt,
+                            style: TextStyle(
+                              color: cs.onSurface.withOpacity(0.70),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded),
+              Icon(Icons.chevron_right_rounded,
+                  color: cs.onSurface.withOpacity(0.55)),
             ],
           ),
         ),
@@ -552,7 +1137,8 @@ class _ErrorCard extends StatelessWidget {
           children: [
             Icon(Icons.error_outline_rounded, color: cs.error, size: 42),
             const SizedBox(height: 10),
-            const Text('Gagal memuat', style: TextStyle(fontWeight: FontWeight.w900)),
+            const Text('Gagal memuat',
+                style: TextStyle(fontWeight: FontWeight.w900)),
             const SizedBox(height: 6),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 12),
@@ -575,10 +1161,10 @@ class _KpiSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    Widget box({double h = 82}) => Container(
+    Widget box({double h = 86}) => Container(
           height: h,
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest,
+            color: cs.surfaceContainerHighest.withOpacity(0.55),
             borderRadius: BorderRadius.circular(18),
           ),
         );
@@ -593,9 +1179,9 @@ class _KpiSkeleton extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        box(h: 74),
+        box(h: 78),
         const SizedBox(height: 12),
-        box(h: 92),
+        box(h: 98),
       ],
     );
   }
