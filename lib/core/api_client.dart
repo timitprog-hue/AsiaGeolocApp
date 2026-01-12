@@ -1,8 +1,9 @@
-import 'package:dio/dio.dart';
+﻿import 'package:dio/dio.dart';
 import 'auth_storage.dart';
 
 class ApiClient {
-  static const String BASE_URL = 'http://192.168.107.53:8000/api'; // <-- GANTI
+  static const String BASE_URL =
+      'https://mediumseagreen-gorilla-539670.hostingersite.com/api';
 
   final Dio dio;
   final AuthStorage storage;

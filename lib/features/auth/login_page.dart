@@ -15,8 +15,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _email = TextEditingController(text: 'sales1@test.com');
-  final _pass = TextEditingController(text: 'password');
+  final _email = TextEditingController(text: '');
+  final _pass = TextEditingController(text: '');
 
   bool _loading = false;
   String? _error;
