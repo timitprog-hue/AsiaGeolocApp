@@ -15,8 +15,13 @@ class AdminMapPage extends StatefulWidget {
 }
 
 class _AdminMapPageState extends State<AdminMapPage> {
-  // ✅ Modern blue accents (biar konsisten walau theme app beda)
-  static const Color primaryBlue = Color(0xFF1E6BFF);
+  // ✅ Theme Admin (konsisten sama AdminShell & Dashboard)
+  static const Color _bg = Color(0xFFF6F8FF);
+  static const Color _blue = Color(0xFF1D4ED8);
+  static const Color _blue2 = Color(0xFF2563EB);
+  static const Color _blue3 = Color(0xFF60A5FA);
+
+  final BorderRadius _r = BorderRadius.circular(22);
 
   bool _loading = true; // hanya first load
   bool _busy = false; // apply/refresh tanpa dispose map
@@ -230,17 +235,17 @@ class _AdminMapPageState extends State<AdminMapPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: (isOnline ? primaryBlue : Colors.red).withOpacity(0.10),
+                    color: (isOnline ? _blue : Colors.red).withOpacity(0.10),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: (isOnline ? primaryBlue : Colors.red).withOpacity(0.25),
+                      color: (isOnline ? _blue : Colors.red).withOpacity(0.25),
                     ),
                   ),
                   child: Text(
                     isOnline ? 'LIVE' : 'OFFLINE',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: isOnline ? primaryBlue : Colors.red,
+                      color: isOnline ? _blue : Colors.red,
                       letterSpacing: 0.3,
                     ),
                   ),
@@ -269,7 +274,7 @@ class _AdminMapPageState extends State<AdminMapPage> {
                 Expanded(
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundColor: primaryBlue,
+                      backgroundColor: _blue,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -337,7 +342,6 @@ class _AdminMapPageState extends State<AdminMapPage> {
   }
 
   Future<void> _apply() async {
-    // ✅ jangan set _loading = true, biar map gak disposed
     setState(() {
       _busy = true;
       _error = null;
@@ -374,179 +378,151 @@ class _AdminMapPageState extends State<AdminMapPage> {
   // =========================
   // UI widgets
   // =========================
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  String _selectedName() {
+    if (selectedUserId == null) return 'Semua Sales';
+    final u = users.where((e) => _asInt(e['id']) == selectedUserId).toList();
+    if (u.isEmpty) return 'Sales';
+    return (u.first['name'] ?? u.first['email'] ?? 'Sales').toString();
+  }
+
+  Future<int?> _pickSales(BuildContext context) async {
     final cs = Theme.of(context).colorScheme;
 
-    String selectedName() {
-      if (selectedUserId == null) return 'Semua Sales';
-      final u = users.where((e) => _asInt(e['id']) == selectedUserId).toList();
-      if (u.isEmpty) return 'Sales';
-      return (u.first['name'] ?? u.first['email'] ?? 'Sales').toString();
-    }
-
-    return AppBar(
-      backgroundColor: primaryBlue,
-      foregroundColor: Colors.white,
-      elevation: 0,
-      actions: [
-        const SizedBox(width: 4),
-      ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(92),
-        child: Container(
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            color: primaryBlue,
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(18)),
-          ),
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: Column(
-            children: [
-              // ✅ Single header area (hapus "double header"): filter + tombol di appbar bottom
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.18)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: _busy
-                            ? null
-                            : () async {
-                                final picked = await showModalBottomSheet<int?>(
-                                  context: context,
-                                  showDragHandle: true,
-                                  backgroundColor: cs.surface,
-                                  builder: (_) => SafeArea(
-                                    child: ListView(
-                                      shrinkWrap: true,
-                                      children: [
-                                        const Padding(
-                                          padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-                                          child: Text(
-                                            'Pilih Sales',
-                                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                                          ),
-                                        ),
-                                        ListTile(
-                                          title: const Text('Semua Sales'),
-                                          leading: const Icon(Icons.groups_rounded),
-                                          trailing: selectedUserId == null
-                                              ? Icon(Icons.check_rounded, color: cs.primary)
-                                              : null,
-                                          onTap: () => Navigator.pop(context, null),
-                                        ),
-                                        const Divider(height: 1),
-                                        ...users.map((u) {
-                                          final id = _asInt(u['id']);
-                                          final name = (u['name'] ?? u['email'] ?? 'Sales').toString();
-                                          final active = selectedUserId == id;
-                                          return ListTile(
-                                            title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                                            leading: const Icon(Icons.person_pin_circle_rounded),
-                                            trailing: active ? Icon(Icons.check_rounded, color: cs.primary) : null,
-                                            onTap: () => Navigator.pop(context, id),
-                                          );
-                                        }),
-                                        const SizedBox(height: 10),
-                                      ],
-                                    ),
-                                  ),
-                                );
-
-                                if (!mounted) return;
-                                setState(() => selectedUserId = picked);
-                              },
-                        child: Row(
-                          children: [
-                            const Icon(Icons.filter_alt_rounded, color: Colors.white),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    selectedName(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Auto refresh 5 detik',
-                                    style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(Icons.expand_more_rounded, color: Colors.white.withOpacity(0.95)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: primaryBlue,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      onPressed: _busy ? null : _apply,
-                      child: const Text('Terapkan'),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      tooltip: 'Reset',
-                      onPressed: _busy ? null : _reset,
-                      icon: const Icon(Icons.restart_alt_rounded, color: Colors.white),
-                    ),
-                  ],
-                ),
+    return showModalBottomSheet<int?>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: cs.surface,
+      builder: (_) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Text(
+                'Pilih Sales',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
               ),
-              const SizedBox(height: 10),
-              Row(
+            ),
+            ListTile(
+              title: const Text('Semua Sales'),
+              leading: const Icon(Icons.groups_rounded),
+              trailing: selectedUserId == null ? Icon(Icons.check_rounded, color: cs.primary) : null,
+              onTap: () => Navigator.pop(context, null),
+            ),
+            const Divider(height: 1),
+            ...users.map((u) {
+              final id = _asInt(u['id']);
+              final name = (u['name'] ?? u['email'] ?? 'Sales').toString();
+              final active = selectedUserId == id;
+              return ListTile(
+                title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                leading: const Icon(Icons.person_pin_circle_rounded),
+                trailing: active ? Icon(Icons.check_rounded, color: cs.primary) : null,
+                onTap: () => Navigator.pop(context, id),
+              );
+            }),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _topHeroBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _blue.withOpacity(0.96),
+            _blue2.withOpacity(0.86),
+            _blue3.withOpacity(0.55),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _blue.withOpacity(0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withOpacity(0.22)),
+            ),
+            child: const Icon(Icons.map_rounded, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: _busy
+                  ? null
+                  : () async {
+                      final picked = await _pickSales(context);
+                      if (!mounted) return;
+                      setState(() => selectedUserId = picked);
+                    },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: Colors.white.withOpacity(0.18)),
-                    ),
-                    child: Text(
-                      'Sales terpantau: ${liveRows.length}',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                  Text(
+                    _selectedName(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  if (_busy)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: Colors.white.withOpacity(0.18)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-                          SizedBox(width: 8),
-                          Text('Memuat...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                        ],
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Auto refresh 5 detik • Terpantau: ${liveRows.length}',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
                     ),
+                  ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(width: 10),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: _blue,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: _busy ? null : _apply,
+            child: _busy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: _blue),
+                  )
+                : const Text('Terapkan'),
+          ),
+          const SizedBox(width: 6),
+          IconButton(
+            tooltip: 'Reset',
+            onPressed: _busy ? null : _reset,
+            icon: const Icon(Icons.restart_alt_rounded, color: Colors.white),
+          ),
+        ],
       ),
     );
   }
@@ -555,81 +531,112 @@ class _AdminMapPageState extends State<AdminMapPage> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded, size: 42, color: Colors.red),
-            const SizedBox(height: 10),
-            Text(
-              _error ?? 'Terjadi kesalahan',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+        child: Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: _r),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline_rounded, size: 42, color: Theme.of(context).colorScheme.error),
+                const SizedBox(height: 10),
+                const Text('Gagal memuat', style: TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 6),
+                Text(
+                  _error ?? 'Terjadi kesalahan',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                  onPressed: _loadAll,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Coba Lagi'),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: primaryBlue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              onPressed: _loadAll,
-              child: const Text('Coba Lagi'),
-            ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _mapLegendOverlay() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.92),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.my_location_rounded, color: _blue, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            'Marker: ${liveRows.length}',
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // ❌ AppBar DIHAPUS di sini, karena AppBar sudah ada di AdminShell.
     return Scaffold(
-      appBar: _buildAppBar(context),
+      backgroundColor: _bg,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? _buildErrorView()
-              : Stack(
-                  children: [
-                    // ✅ Map full (filter udah pindah ke AppBar bottom, jadi header cuma 1)
-                    GoogleMap(
-                      initialCameraPosition: _initialCam,
-                      myLocationButtonEnabled: false,
-                      myLocationEnabled: false,
-                      zoomControlsEnabled: false,
-                      markers: _buildMarkers(),
-                      onMapCreated: (c) async {
-                        _gmap = c;
-                        // fokus ke yang terbaru pas pertama kali map jadi
-                        await _loadLiveLocations(moveCameraIfFirst: true);
-                      },
-                    ),
-
-                    // ✅ floating micro overlay (lebih rapih, modern)
-                    Positioned(
-                      left: 12,
-                      bottom: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.55),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white.withOpacity(0.12)),
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                  child: ClipRRect(
+                    borderRadius: _r,
+                    child: Stack(
+                      children: [
+                        GoogleMap(
+                          initialCameraPosition: _initialCam,
+                          myLocationButtonEnabled: false,
+                          myLocationEnabled: false,
+                          zoomControlsEnabled: false,
+                          markers: _buildMarkers(),
+                          onMapCreated: (c) async {
+                            _gmap = c;
+                            await _loadLiveLocations(moveCameraIfFirst: true);
+                          },
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.my_location_rounded, color: Colors.white, size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Marker: ${liveRows.length}',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
-                            ),
-                          ],
+                        Positioned(
+                          left: 12,
+                          right: 12,
+                          top: 12,
+                          child: _topHeroBar(context),
                         ),
-                      ),
+                        Positioned(
+                          left: 12,
+                          bottom: 12,
+                          child: _mapLegendOverlay(),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
     );
   }

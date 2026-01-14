@@ -12,10 +12,11 @@ class ReportListPage extends StatefulWidget {
   const ReportListPage({super.key});
 
   @override
-  State<ReportListPage> createState() => _ReportListPageState();
+  State<ReportListPage> createState() => ReportListPageState();
 }
 
-class _ReportListPageState extends State<ReportListPage> {
+// ✅ PUBLIC State biar bisa dipakai GlobalKey dari SalesShell
+class ReportListPageState extends State<ReportListPage> {
   // ===== STYLE (Blue Modern) =====
   static const Color _blue = Color(0xFF1D4ED8);
   static const Color _bg = Color(0xFFF6F8FF);
@@ -26,6 +27,9 @@ class _ReportListPageState extends State<ReportListPage> {
   String? _error;
 
   String? _baseUrl;
+
+  // ✅ dipanggil dari SalesShell setelah submit report
+  void reload() => _load();
 
   @override
   void initState() {

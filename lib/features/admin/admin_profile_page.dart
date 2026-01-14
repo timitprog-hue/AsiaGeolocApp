@@ -13,6 +13,14 @@ class AdminProfilePage extends StatefulWidget {
 }
 
 class _AdminProfilePageState extends State<AdminProfilePage> {
+  // ✅ Tema Admin (konsisten sama AdminShell & Dashboard)
+  static const Color _bg = Color(0xFFF6F8FF);
+  static const Color _blue = Color(0xFF1D4ED8);
+  static const Color _blue2 = Color(0xFF2563EB);
+  static const Color _blue3 = Color(0xFF60A5FA);
+
+  final BorderRadius _r = BorderRadius.circular(22);
+
   bool _loading = true;
   String? _error;
   Map<String, dynamic>? _me;
@@ -66,11 +74,17 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Scaffold(
+      backgroundColor: _bg,
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text(
+          'Profile',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        elevation: 0,
+        backgroundColor: _bg,
+        foregroundColor: Colors.black87,
+        surfaceTintColor: Colors.transparent,
         actions: [
           IconButton(
             tooltip: 'Refresh',
@@ -83,22 +97,88 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? _ErrorState(message: _error!, onRetry: _load)
-                : _buildContent(cs),
+                ? _ErrorState(message: _error!, onRetry: _load, blue: _blue, radius: _r)
+                : _buildContent(),
       ),
     );
   }
 
-  Widget _buildContent(ColorScheme cs) {
+  Widget _buildContent() {
     final name = (_me?['name'] ?? '-').toString();
     final email = (_me?['email'] ?? '-').toString();
     final role = (_me?['role'] ?? '-').toString();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
       children: [
-        // Header card
+        // ===== HERO HEADER (seperti dashboard) =====
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: _r,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                _blue.withOpacity(0.96),
+                _blue2.withOpacity(0.86),
+                _blue3.withOpacity(0.55),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _blue.withOpacity(0.18),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white.withOpacity(0.22)),
+                ),
+                child: const Icon(Icons.verified_user_rounded, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Admin Profile',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Kelola akun & sesi login',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // ===== HEADER CARD (IDENTITAS) =====
         Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: _r),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -107,10 +187,11 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: cs.primary.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(18),
+                    color: _blue.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: _blue.withOpacity(0.18)),
                   ),
-                  child: Icon(Icons.account_circle_rounded, color: cs.primary, size: 34),
+                  child: const Icon(Icons.account_circle_rounded, color: _blue, size: 34),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -126,14 +207,12 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                       const SizedBox(height: 4),
                       Text(
                         email,
-                        style: TextStyle(
-                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.75),
-                        ),
+                        style: TextStyle(color: Colors.black.withOpacity(0.65), fontWeight: FontWeight.w600),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 10),
-                      _RoleChip(role: role),
+                      _RoleChip(role: role, blue: _blue),
                     ],
                   ),
                 ),
@@ -144,8 +223,10 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
 
         const SizedBox(height: 12),
 
-        // Info section
+        // ===== INFO SECTION =====
         Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: _r),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
             child: Column(
@@ -164,21 +245,23 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
 
         const SizedBox(height: 12),
 
-        // Actions (✅ tinggal 1 logout, no double)
+        // ===== ACTIONS =====
         Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: _r),
           child: Column(
             children: [
               ListTile(
-                leading: Icon(Icons.refresh_rounded, color: cs.primary),
-                title: const Text('Refresh data', style: TextStyle(fontWeight: FontWeight.w800)),
+                leading: Icon(Icons.refresh_rounded, color: _blue),
+                title: const Text('Refresh data', style: TextStyle(fontWeight: FontWeight.w900)),
                 subtitle: const Text('Ambil ulang data akun dari server'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: _loading ? null : _load,
               ),
               const Divider(height: 1),
               ListTile(
-                leading: Icon(Icons.logout_rounded, color: cs.error),
-                title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
+                leading: Icon(Icons.logout_rounded, color: Colors.red.shade600),
+                title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w900)),
                 subtitle: const Text('Keluar dari akun admin'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: _logout,
@@ -193,21 +276,23 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
 
 class _RoleChip extends StatelessWidget {
   final String role;
-  const _RoleChip({required this.role});
+  final Color blue;
+  const _RoleChip({required this.role, required this.blue});
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     final text = role.trim().isEmpty ? '-' : role.toUpperCase();
-    final bg = cs.primary.withOpacity(0.12);
-    final fg = cs.primary;
+    final isAdmin = role.toLowerCase() == 'admin';
+
+    final bg = isAdmin ? Colors.black.withOpacity(0.06) : blue.withOpacity(0.12);
+    final fg = isAdmin ? Colors.black87 : blue;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: fg.withOpacity(0.18)),
       ),
       child: Text(
         text,
@@ -248,7 +333,15 @@ class _InfoRow extends StatelessWidget {
 class _ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
-  const _ErrorState({required this.message, required this.onRetry});
+  final Color blue;
+  final BorderRadius radius;
+
+  const _ErrorState({
+    required this.message,
+    required this.onRetry,
+    required this.blue,
+    required this.radius,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -258,6 +351,8 @@ class _ErrorState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: radius),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -269,7 +364,12 @@ class _ErrorState extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(message, textAlign: TextAlign.center),
                 const SizedBox(height: 12),
-                ElevatedButton.icon(
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
                   onPressed: onRetry,
                   icon: const Icon(Icons.refresh_rounded),
                   label: const Text('Coba lagi'),
